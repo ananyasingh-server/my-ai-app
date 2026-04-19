@@ -1,17 +1,17 @@
-import psycopg2
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from fastapi.middleware.cors import CORSMiddleware
+import psycopg2 #database connection
+from fastapi import FastAPI, HTTPException  #Fasstapi framework
+from pydantic import BaseModel #data validation
+from fastapi.middleware.cors import CORSMiddleware # allow frontend requests without crashing 
 
-from google import genai
-import os
+from google import genai #GeminiAI
+import os #Access environment variables
 from dotenv import load_dotenv
 
 app = FastAPI()
 
-app.add_middleware(
+app.add_middleware( #enable cors so frontend can talk to backend
     CORSMiddleware,
-    allow_origins=["*"],  # allow all (for now)
+    allow_origins=["*"],  
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -23,13 +23,13 @@ client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 conn = psycopg2.connect(os.getenv("DATABASE_URL"))
 cursor = conn.cursor()
 
-class GenerateRequest(BaseModel):
+class GenerateRequest(BaseModel): #request model for generating post
     topic: str
     platform: str
     tone: str
     length: str
 
-class SavePostRequest(BaseModel):
+class SavePostRequest(BaseModel): #request model for saving post
     topic: str
     platform: str
     tone: str
@@ -40,25 +40,51 @@ class SavePostRequest(BaseModel):
 def read_root():
     return {"message": "Backend is running"}
 
-@app.post("/generate-post")
+@app.post("/generate-post") #generate post using GeminiAI
 def generate_post(data: GenerateRequest):
     try:
-        prompt = f"Generate a {data.platform} post in a {data.tone} tone about {data.topic}. Keep it {data.length}."
+        prompt = f"""
+Generate ONE {data.platform} post about "{data.topic}".
 
+Tone: {data.tone}
+Length: {data.length}
+
+Length rules (STRICT):
+Short - 1-2 lines only
+Medium - 3-5 lines
+Long - multiple paragraphs
+
+IMPORTANT RULES:
+Generate ONLY ONE post
+Do NOT generate multiple versions
+Do NOT include labels like Short/Medium/Long
+Do NOT show examples
+Follow the selected length EXACTLY
+Return only the final post
+
+Style guidelines:
+LinkedIn - professional and structured
+Twitter - concise and punchy
+Instagram - engaging, may include light emojis
+
+Use placeholders like [Your Name], [Company Name] where appropriate.
+Add relevant hashtags at the end.
+"""
+        #Call GeminiAPI
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=prompt
         )
-
+        #return generated content
         return {"response": response.text}
 
     except Exception as e:
      print(f"API Error: {e}")
-    return {
+    return {           #Fallback response if ai fails
         "response": f"(AI busy) Here's a sample {data.platform} post about {data.topic} in a {data.tone} tone. Keep it {data.length}."
     }
 
-@app.post("/save-post")
+@app.post("/save-post")  #save posts to database
 def save_post(data: SavePostRequest):
     try:
         cursor.execute(
@@ -73,7 +99,7 @@ def save_post(data: SavePostRequest):
         print(f"DB Error: {e}")
         raise HTTPException(status_code=500, detail="Failed to save post")
 
-@app.get("/posts")
+@app.get("/posts")   #Fetch all saved posts
 def get_posts():
     try:
         cursor.execute("SELECT id, topic, platform, tone, content, created_at FROM posts ORDER BY id DESC")

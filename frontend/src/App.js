@@ -10,11 +10,17 @@ function App() {
   const [response, setResponse] = useState("");
   const [copied, setCopied] = useState(false);
   const [posts, setPosts] = useState([]);
+  const [error, setError] = useState("");
 
-  // 🔥 Generate Post
+  //handles API call to backend and generates AI post
   const handleSubmit = async () => {
+    if (!topic.trim()) {
+    setError("Please enter a topic");
+    return;
+  }
     setLoading(true);
     setResponse("");
+    setError("");
 
     try {
       const res = await fetch("http://127.0.0.1:8000/generate-post", {
@@ -39,7 +45,7 @@ function App() {
     setLoading(false);
   };
 
-  // 📋 Copy
+  //copy the generated content to clipboard
   const handleCopy = () => {
     navigator.clipboard.writeText(response);
     setCopied(true);
@@ -49,8 +55,12 @@ function App() {
     }, 2000);
   };
 
-  // 💾 Save Post
+//sends the post to backend to store in database
   const handleSave = async () => {
+    if (!response) {
+    alert("Generate a post first before saving");
+    return;
+  }
     try {
       const res = await fetch("http://127.0.0.1:8000/save-post", {
         method: "POST",
@@ -73,7 +83,7 @@ function App() {
     }
   };
 
-  // 📂 Fetch Saved Posts
+//fetches saved posts from backend and displays them
   const fetchPosts = async () => {
     try {
       const res = await fetch("http://127.0.0.1:8000/posts");
@@ -92,7 +102,7 @@ function App() {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        flexDirection: "column", // 👈 IMPORTANT
+        flexDirection: "column", 
       }}
     >
       <div
@@ -104,9 +114,14 @@ function App() {
           boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
         }}
       >
-        <h2 style={{ marginBottom: "20px" }}>
-          AI Content Generator
-        </h2>
+        <h2 style={{
+              marginBottom: "20px",
+              textAlign: "center",
+              fontSize: "24px",
+              fontWeight: "600"
+       }}>
+       AI Content Generator 
+       </h2>
 
         {/* Topic */}
         <input
@@ -121,6 +136,12 @@ function App() {
             border: "1px solid #ccc",
           }}
         />
+
+{error && (
+  <p style={{ color: "red", fontSize: "14px", marginTop: "-10px", marginBottom: "10px" }}>
+  {error}
+  </p>
+)}
 
         {/* Platform */}
         <select
@@ -195,7 +216,8 @@ function App() {
             width: "100%",
             padding: "10px",
             marginTop: "10px",
-            backgroundColor: "#28a745",
+            background: "#16a34a",
+            transition: "0.2s",
             color: "white",
             border: "none",
             borderRadius: "5px",
@@ -210,8 +232,10 @@ function App() {
           style={{
             marginTop: "20px",
             padding: "15px",
-            background: "#f9f9f9",
-            borderRadius: "5px",
+            background: "#f1f5f9",
+            border: "1px solid #e2e8f0",
+            borderRadius: "8px",
+            lineHeight: "1.6",
             minHeight: "60px",
             position: "relative",
           }}
@@ -260,7 +284,7 @@ function App() {
         </div>
       </div>
 
-      {/* 🔥 Saved Posts Section */}
+      {/*Saved Posts Section*/}
       {posts.length > 0 && (
         <div
           style={{
@@ -275,10 +299,10 @@ function App() {
               key={post.id}
               style={{
                 background: "white",
-                padding: "10px",
-                marginTop: "10px",
-                borderRadius: "5px",
-                border: "1px solid #ddd",
+                padding: "12px",
+                borderRadius: "8px",
+                border: "1px solid #e2e8f0",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
               }}
             >
               <strong>{post.platform}</strong> | {post.tone}
